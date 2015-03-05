@@ -10,11 +10,14 @@ public class Geoloc {
 	protected float speed = 1;
 	protected Long time = System.currentTimeMillis();
 
-	public Geoloc(double latitude, double longitude, double altitude) {
+	protected int duration = 15;
+
+	public Geoloc(double latitude, double longitude, double altitude, int duration) {
 		super();
 		this.latitude = latitude;
 		this.longitude = longitude;
 		this.altitude = altitude;
+		this.duration = duration;
 	}
 
 	public double getLatitude() {
@@ -71,5 +74,13 @@ public class Geoloc {
 
 	public void setTime(Long time) {
 		this.time = time;
+	}
+
+	public int getDuration() {
+		return duration;
+	}
+
+	public void setDuration(int duration) {
+		this.duration = duration;
 	}
 }

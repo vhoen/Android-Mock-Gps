@@ -23,7 +23,6 @@ import android.util.Log;
 
 public class MockLocationProvider extends Service {
 	private static final int GPS_START_INTERVAL = 3000;
-	private static final int GPS_FREQUENCE = 10000;
 	private ArrayList<Geoloc> data;
 	private LocationManager locationManager;
 	private String mockLocationProvider = LocationManager.NETWORK_PROVIDER;
@@ -92,7 +91,7 @@ public class MockLocationProvider extends Service {
 					nextIndex = currentIndex;
 				}
 
-				sendEmptyMessageDelayed(nextIndex, GPS_FREQUENCE);
+				sendEmptyMessageDelayed(nextIndex, data.get(currentIndex).getDuration() * 1000);
 			}
 			super.handleMessage(msg);
 		}
