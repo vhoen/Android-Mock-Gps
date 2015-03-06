@@ -83,6 +83,7 @@ public class MockLocationProvider extends Service {
 		@Override
 		public void handleMessage(Message msg) {
 			if (data.size() > 0) {
+				
 				int currentIndex = msg.what;
 				sendLocation(currentIndex);
 
@@ -91,7 +92,8 @@ public class MockLocationProvider extends Service {
 					nextIndex = currentIndex;
 				}
 
-				sendEmptyMessageDelayed(nextIndex, data.get(currentIndex).getDuration() * 1000);
+				sendEmptyMessageDelayed(nextIndex, data.get(currentIndex)
+						.getDuration() * 1000);
 			}
 			super.handleMessage(msg);
 		}
@@ -116,6 +118,11 @@ public class MockLocationProvider extends Service {
 		Log.d(MainActivity.TAG, "Set Position (" + i + ") : " + g.getLatitude()
 				+ "," + g.getLongitude());
 		locationManager.setTestProviderLocation(mockLocationProvider, location);
+
+		Intent locationReceivedIntent = new Intent(
+				MockGpsFragment.LOCATION_RECEIVED);
+		locationReceivedIntent.putExtra("geolocIndex", i);
+		sendBroadcast(locationReceivedIntent);
 	}
 
 	protected void displayStartNotification() {
