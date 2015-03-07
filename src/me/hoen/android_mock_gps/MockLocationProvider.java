@@ -14,6 +14,7 @@ import android.content.IntentFilter;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.AsyncTask;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -21,7 +22,25 @@ import android.os.SystemClock;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
-public class MockLocationProvider extends Service {
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesClient.ConnectionCallbacks;
+import com.google.android.gms.common.GooglePlayServicesClient.OnConnectionFailedListener;
+import com.google.android.gms.location.LocationClient;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+
+public class MockLocationProvider extends Service implements LocationListener,
+		ConnectionCallbacks, OnConnectionFailedListener {
+	public static final int MILLISECONDS_PER_SECOND = 1000;
+	public static final int UPDATE_INTERVAL_IN_SECONDS = 60;
+	public static final int FAST_CEILING_IN_SECONDS = 1;
+	public static final long UPDATE_INTERVAL_IN_MILLISECONDS = MILLISECONDS_PER_SECOND
+			* UPDATE_INTERVAL_IN_SECONDS;
+	public static final long FAST_INTERVAL_CEILING_IN_MILLISECONDS = MILLISECONDS_PER_SECOND
+			* FAST_CEILING_IN_SECONDS;
+	private LocationRequest mLocationRequest;
+	private LocationClient mLocationClient;
+
 	private static final int GPS_START_INTERVAL = 3000;
 	private ArrayList<Geoloc> data;
 	private LocationManager locationManager;
@@ -51,26 +70,20 @@ public class MockLocationProvider extends Service {
 
 		Log.d(MainActivity.TAG, "Mock GPS started");
 
+		mLocationRequest = LocationRequest.create();
+		mLocationRequest.setInterval(UPDATE_INTERVAL_IN_MILLISECONDS);
+		mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+		mLocationRequest
+				.setFastestInterval(FAST_INTERVAL_CEILING_IN_MILLISECONDS);
+		mLocationClient = new LocationClient(this, this, this);
+
+		mLocationClient.connect();
+
 		registerReceiver(stopServiceReceiver, new IntentFilter(SERVICE_STOP));
 		locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 		locationManager.addTestProvider(mockLocationProvider, false, false,
 				false, false, true, true, true, 0, 5);
 		locationManager.setTestProviderEnabled(mockLocationProvider, true);
-
-		new AsyncTask<String, Integer, String>() {
-			@Override
-			protected String doInBackground(String... params) {
-				initGpsLatLng();
-				return null;
-			}
-
-			@Override
-			protected void onPostExecute(String result) {
-				displayStartNotification();
-				handler.sendEmptyMessageDelayed(0, GPS_START_INTERVAL);
-				super.onPostExecute(result);
-			}
-		}.execute("");
 	}
 
 	private void initGpsLatLng() {
@@ -83,7 +96,7 @@ public class MockLocationProvider extends Service {
 		@Override
 		public void handleMessage(Message msg) {
 			if (data.size() > 0) {
-				
+
 				int currentIndex = msg.what;
 				sendLocation(currentIndex);
 
@@ -118,7 +131,7 @@ public class MockLocationProvider extends Service {
 		Log.d(MainActivity.TAG, "Set Position (" + i + ") : " + g.getLatitude()
 				+ "," + g.getLongitude());
 		locationManager.setTestProviderLocation(mockLocationProvider, location);
-
+		mLocationClient.setMockLocation(location);
 		Intent locationReceivedIntent = new Intent(
 				MockGpsFragment.LOCATION_RECEIVED);
 		locationReceivedIntent.putExtra("geolocIndex", i);
@@ -155,12 +168,71 @@ public class MockLocationProvider extends Service {
 
 	@Override
 	public void onDestroy() {
-		unregisterReceiver(stopServiceReceiver);
 		super.onDestroy();
+		unregisterReceiver(stopServiceReceiver);
+		mLocationClient.disconnect();
 	}
 
 	@Override
 	public IBinder onBind(Intent intent) {
 		return null;
+	}
+
+	@Override
+	public void onConnectionFailed(ConnectionResult connectionResult) {
+		// Log.d("lstech.aos.debug", "Service -> geoloc failed");
+	}
+
+	@Override
+	public void onConnected(Bundle connectionHint) {
+		Log.d("lstech.aos.debug", "Service -> geoloc connected");
+		mLocationClient.setMockMode(true);
+		
+		new AsyncTask<String, Integer, String>() {
+			@Override
+			protected String doInBackground(String... params) {
+				initGpsLatLng();
+				return null;
+			}
+
+			@Override
+			protected void onPostExecute(String result) {
+				displayStartNotification();
+				handler.sendEmptyMessageDelayed(0, GPS_START_INTERVAL);
+				super.onPostExecute(result);
+			}
+		}.execute("");
+		
+	
+		startPeriodicUpdates();
+
+	}
+
+	@Override
+	public void onDisconnected() {
+		// Log.d("lstech.aos.debug", "Service -> geoloc disconnected");
+		stopPeriodicUpdates();
+	}
+
+	@Override
+	public void onLocationChanged(Location location) {
+		Log.d(MainActivity.TAG, "Geolocation Service location changed : "
+				+ location.toString());
+	}
+
+	protected void retrieveNearbyData() {
+
+	}
+
+	protected void startPeriodicUpdates() {
+		if (mLocationClient.isConnected()) {
+			mLocationClient.requestLocationUpdates(mLocationRequest, this);
+		}
+	}
+
+	protected void stopPeriodicUpdates() {
+		if (mLocationClient.isConnected()) {
+			mLocationClient.removeLocationUpdates(this);
+		}
 	}
 }
