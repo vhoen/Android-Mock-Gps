@@ -23,23 +23,22 @@ import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GooglePlayServicesClient.ConnectionCallbacks;
-import com.google.android.gms.common.GooglePlayServicesClient.OnConnectionFailedListener;
-import com.google.android.gms.location.LocationClient;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
+import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
 
 public class MockLocationProvider extends Service implements LocationListener,
-		ConnectionCallbacks, OnConnectionFailedListener {
-	public static final int MILLISECONDS_PER_SECOND = 1000;
-	public static final int UPDATE_INTERVAL_IN_SECONDS = 60;
-	public static final int FAST_CEILING_IN_SECONDS = 1;
-	public static final long UPDATE_INTERVAL_IN_MILLISECONDS = MILLISECONDS_PER_SECOND
-			* UPDATE_INTERVAL_IN_SECONDS;
-	public static final long FAST_INTERVAL_CEILING_IN_MILLISECONDS = MILLISECONDS_PER_SECOND
-			* FAST_CEILING_IN_SECONDS;
-	private LocationRequest mLocationRequest;
-	private LocationClient mLocationClient;
+		ConnectionCallbacks, OnConnectionFailedListener, ResultCallback<Status> {
+
+	public static final long UPDATE_INTERVAL_IN_MILLISECONDS = 10000;
+	public static final long FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS = UPDATE_INTERVAL_IN_MILLISECONDS / 5;
+	protected GoogleApiClient mGoogleApiClient;
+	protected LocationRequest mLocationRequest;
 
 	private static final int GPS_START_INTERVAL = 3000;
 	private ArrayList<Geoloc> data;
@@ -70,20 +69,31 @@ public class MockLocationProvider extends Service implements LocationListener,
 
 		Log.d(MainActivity.TAG, "Mock GPS started");
 
-		mLocationRequest = LocationRequest.create();
-		mLocationRequest.setInterval(UPDATE_INTERVAL_IN_MILLISECONDS);
-		mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-		mLocationRequest
-				.setFastestInterval(FAST_INTERVAL_CEILING_IN_MILLISECONDS);
-		mLocationClient = new LocationClient(this, this, this);
-
-		mLocationClient.connect();
+		buildGoogleApiClient();
+		mGoogleApiClient.connect();
 
 		registerReceiver(stopServiceReceiver, new IntentFilter(SERVICE_STOP));
 		locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 		locationManager.addTestProvider(mockLocationProvider, false, false,
 				false, false, true, true, true, 0, 5);
 		locationManager.setTestProviderEnabled(mockLocationProvider, true);
+	}
+
+	protected synchronized void buildGoogleApiClient() {
+		Log.i(MainActivity.TAG, "Building GoogleApiClient");
+		mGoogleApiClient = new GoogleApiClient.Builder(this)
+				.addConnectionCallbacks(this)
+				.addOnConnectionFailedListener(this)
+				.addApi(LocationServices.API).build();
+		createLocationRequest();
+	}
+
+	protected void createLocationRequest() {
+		mLocationRequest = new LocationRequest();
+		mLocationRequest.setInterval(UPDATE_INTERVAL_IN_MILLISECONDS);
+		mLocationRequest
+				.setFastestInterval(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS);
+		mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
 	}
 
 	private void initGpsLatLng() {
@@ -131,7 +141,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 		Log.d(MainActivity.TAG, "Set Position (" + i + ") : " + g.getLatitude()
 				+ "," + g.getLongitude());
 		locationManager.setTestProviderLocation(mockLocationProvider, location);
-		mLocationClient.setMockLocation(location);
+		LocationServices.FusedLocationApi.setMockLocation(mGoogleApiClient, location);
 		Intent locationReceivedIntent = new Intent(
 				MockGpsFragment.LOCATION_RECEIVED);
 		locationReceivedIntent.putExtra("geolocIndex", i);
@@ -170,7 +180,6 @@ public class MockLocationProvider extends Service implements LocationListener,
 	public void onDestroy() {
 		super.onDestroy();
 		unregisterReceiver(stopServiceReceiver);
-		mLocationClient.disconnect();
 	}
 
 	@Override
@@ -186,8 +195,8 @@ public class MockLocationProvider extends Service implements LocationListener,
 	@Override
 	public void onConnected(Bundle connectionHint) {
 		Log.d("lstech.aos.debug", "Service -> geoloc connected");
-		mLocationClient.setMockMode(true);
-		
+		LocationServices.FusedLocationApi.setMockMode(mGoogleApiClient, true);
+
 		new AsyncTask<String, Integer, String>() {
 			@Override
 			protected String doInBackground(String... params) {
@@ -202,16 +211,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 				super.onPostExecute(result);
 			}
 		}.execute("");
-		
-	
-		startPeriodicUpdates();
 
-	}
-
-	@Override
-	public void onDisconnected() {
-		// Log.d("lstech.aos.debug", "Service -> geoloc disconnected");
-		stopPeriodicUpdates();
 	}
 
 	@Override
@@ -221,18 +221,15 @@ public class MockLocationProvider extends Service implements LocationListener,
 	}
 
 	protected void retrieveNearbyData() {
+	}
+
+	@Override
+	public void onResult(Status result) {
 
 	}
 
-	protected void startPeriodicUpdates() {
-		if (mLocationClient.isConnected()) {
-			mLocationClient.requestLocationUpdates(mLocationRequest, this);
-		}
-	}
-
-	protected void stopPeriodicUpdates() {
-		if (mLocationClient.isConnected()) {
-			mLocationClient.removeLocationUpdates(this);
-		}
+	@Override
+	public void onConnectionSuspended(int cause) {
+		mGoogleApiClient.connect();
 	}
 }
