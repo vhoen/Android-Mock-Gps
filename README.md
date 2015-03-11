@@ -32,3 +32,10 @@ public class GeolocStore {
     }
 }
 ```
+
+![](./res/drawable/app_start.png)
+![](./res/drawable/path01.png)
+![](./res/drawable/path03.png)
+![](./res/drawable/path05.png)
+![](./res/drawable/path09.png)
+![](./res/drawable/app_stop.png)
