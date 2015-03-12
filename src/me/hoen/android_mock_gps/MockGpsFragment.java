@@ -7,11 +7,14 @@ import org.osmdroid.bonuspack.overlays.Marker;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.PathOverlay;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -29,6 +32,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 
 	protected MapView mapView;
 	protected IMapController mapController;
+	protected PathOverlay path;
 
 	protected ArrayList<Integer> geolocIndexes = new ArrayList<Integer>();
 
@@ -38,11 +42,12 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		public void onReceive(Context context, Intent intent) {
 			if (intent.getAction().equals(LOCATION_RECEIVED)) {
 				int i = intent.getIntExtra("geolocIndex", 0);
-				
-				if (geolocIndexes.size() == 0 || geolocIndexes.get(geolocIndexes.size() - 1) != i) {
+
+				if (geolocIndexes.size() == 0
+						|| geolocIndexes.get(geolocIndexes.size() - 1) != i) {
 					Geoloc g = GeolocStore.getInstance().getGeolocs().get(i);
 					receiveLocation(g);
-					
+
 					geolocIndexes.add(i);
 				}
 			}
@@ -64,7 +69,15 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		mapView.setBuiltInZoomControls(true);
 		mapView.setMultiTouchControls(true);
 
+		path = new PathOverlay(Color.YELLOW, getActivity());
+		mapView.getOverlays().add(path);
+
+		Paint paint = path.getPaint();
+		paint.setStrokeWidth(5);
+		path.setPaint(paint);
+
 		mapController = mapView.getController();
+		mapController.setCenter(new GeoPoint(48.860553, 2.339678));
 		mapController.setZoom(12);
 
 		return rootView;
@@ -122,6 +135,8 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
 		marker.setRelatedObject(g);
 		mapView.getOverlays().add(marker);
+
+		path.addPoint(geoPoint);
 
 		mapController.setZoom(12);
 		mapController.setCenter(geoPoint);
