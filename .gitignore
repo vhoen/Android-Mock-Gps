@@ -29,3 +29,6 @@ proguard/
 .project
 proguard-project.txt
 project.properties
+
+.idea
+.settings
