@@ -3,10 +3,11 @@ package me.hoen.android_mock_gps;
 import java.util.ArrayList;
 
 import org.osmdroid.api.IMapController;
-import org.osmdroid.bonuspack.overlays.Marker;
+import org.osmdroid.config.Configuration;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.PathOverlay;
 
 import android.content.BroadcastReceiver;
@@ -64,9 +65,12 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 				.findViewById(R.id.start_mock_gps);
 		startMockGpsBt.setOnClickListener(getStartMockGpsListener());
 
-		mapView = (MapView) rootView.findViewById(R.id.mapview);
-		mapView.setTileSource(TileSourceFactory.MAPQUESTOSM);
-		mapView.setBuiltInZoomControls(true);
+        Configuration.getInstance().setUserAgentValue(getActivity().getPackageName());
+
+
+        mapView = (MapView) rootView.findViewById(R.id.mapview);
+		mapView.setTileSource(TileSourceFactory.MAPNIK);
+		mapView.setTilesScaledToDpi(true);
 		mapView.setMultiTouchControls(true);
 
 		path = new PathOverlay(Color.YELLOW, getActivity());
